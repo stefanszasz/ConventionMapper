@@ -39,7 +39,9 @@ namespace ConventionMapper
         private static void FillOutput(TOutput mappedResult, Func<PropertyInfo, PropertyInfo, bool> propertyInfoConvention)
         {
             if (propertyInfoConvention == null)
-                propertyInfoConvention = (sType, tType) => sType.PropertyType == tType.PropertyType;
+                propertyInfoConvention = (sType, tType)
+                                        => sType.Name == tType.Name
+                                        && sType.PropertyType == tType.PropertyType;
 
             foreach (var sourcePropertyInfo in typeof(TSource).GetProperties())
             {
@@ -49,27 +51,26 @@ namespace ConventionMapper
 
         private static void FillMatchedProperties(TSource source, PropertyInfo sourcePropertyInfo, TOutput result, Func<PropertyInfo, PropertyInfo, bool> propertyInfoConvention)
         {
-            PropertyInfo targetPropertyInfo = typeof(TOutput).GetProperty(sourcePropertyInfo.Name,
-                                                                     BindingFlags.Instance | BindingFlags.Public |
-                                                                     BindingFlags.FlattenHierarchy |
-                                                                     BindingFlags.SetProperty);
-            if (targetPropertyInfo == null) return;
-
             var sourceValue = sourcePropertyInfo.GetValue(source, null);
 
-            if (propertyInfoConvention(sourcePropertyInfo, targetPropertyInfo))
+            PropertyInfo[] targetPropertyInfos = typeof(TOutput).GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.FlattenHierarchy | BindingFlags.SetProperty);
+
+            foreach (var targetPropertyInfo in targetPropertyInfos)
             {
-                if (_existingShape != null)
+                if (propertyInfoConvention(sourcePropertyInfo, targetPropertyInfo))
                 {
-                    object targetValue = targetPropertyInfo.GetValue(_existingShape, null);
-                    if (sourceValue != targetValue)
+                    if (_existingShape != null)
                     {
-                        targetPropertyInfo.SetValue(result, sourceValue ?? targetValue, null);
+                        object targetValue = targetPropertyInfo.GetValue(_existingShape, null);
+                        if (sourceValue != targetValue)
+                        {
+                            targetPropertyInfo.SetValue(result, sourceValue ?? targetValue, null);
+                        }
                     }
-                }
-                else
-                {
-                    targetPropertyInfo.SetValue(result, sourceValue, null);
+                    else
+                    {
+                        targetPropertyInfo.SetValue(result, sourceValue, null);
+                    }
                 }
             }
         }
